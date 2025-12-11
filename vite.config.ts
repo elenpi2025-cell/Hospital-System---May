@@ -11,7 +11,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       // Polyfill process.env.API_KEY for the GenAI SDK usage in the browser
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      // Use fallback to empty string to prevent build errors if key is missing locally/during build
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || '')
     }
   }
 })
