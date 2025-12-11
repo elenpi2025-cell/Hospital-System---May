@@ -1,0 +1,6 @@
+{
+  "name": "Hospital System",
+  "description": "A hierarchical Hospital System Coordinator (HSC) agent that routes user requests to specialized sub-agents for patient info, scheduling, records, and billing, with fallback to Google Search.",
+  "repositoryUrl": "https://github.com/your-username/medcore-ai-coordinator",
+  "requestFramePermissions": []
+}
