@@ -1,4 +1,4 @@
-import { GoogleGenAI, FunctionDeclaration, Type, Tool } from "@google/genai";
+import { GoogleGenAI, FunctionDeclaration, Type, Tool, FunctionCall } from "@google/genai";
 import { 
   patientInformationHandler, 
   appointmentScheduler, 
@@ -114,11 +114,9 @@ export class GeminiService {
   private modelName = "gemini-2.5-flash"; // Using 2.5 Flash as recommended for tools + speed
 
   constructor() {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      console.error("API_KEY is missing from environment variables.");
-    }
-    this.client = new GoogleGenAI({ apiKey: apiKey || "" });
+    // Vercel build checks might run this when env is not fully loaded yet, so fallback strictly
+    const apiKey = process.env.API_KEY || "";
+    this.client = new GoogleGenAI({ apiKey: apiKey });
   }
 
   async sendMessage(
@@ -126,6 +124,10 @@ export class GeminiService {
     newMessage: string,
     onToolCall?: (agent: AgentType, action: string) => void
   ) {
+    if (!process.env.API_KEY) {
+      throw new Error("API Key is missing. Please check your Vercel settings.");
+    }
+
     // We use a fresh chat session for simplicity to ensure config is applied, 
     // but pass previous history context.
     const chat = this.client.chats.create({
@@ -144,9 +146,6 @@ export class GeminiService {
       let result = await chat.sendMessage({ message: newMessage });
       
       // Loop to handle function calls (multi-turn tool use)
-      // The SDK/Model may return a tool call. We must execute it and send the response back.
-      // We repeat this until the model returns just text.
-      
       while (result.functionCalls && result.functionCalls.length > 0) {
         const functionCalls = result.functionCalls;
         
@@ -155,6 +154,7 @@ export class GeminiService {
 
         for (const call of functionCalls) {
           const name = call.name;
+          // Cast args to any to suppress TS errors, we trust the model/schema
           const args = call.args as any;
           const callId = call.id;
 
@@ -190,6 +190,8 @@ export class GeminiService {
         }
 
         // Send tool results back to model
+        // In the new SDK, message can be an array of Parts. 
+        // We structure the functionResponse parts correctly.
         result = await chat.sendMessage({
           message: functionResponses.map(fr => ({
             functionResponse: fr
